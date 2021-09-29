@@ -6,18 +6,22 @@ import uuid
 
 def login_required(view_func):
     def wrapper(request, *args, **kwargs):
-        try:
-            api_token = request.headers.get('api-token')
-            if api_token != 'null':
+        api_token = request.headers.get('api-token')
+        if api_token != 'null':
+            try:
                 token = ApiToken.objects.get(token=uuid.UUID(api_token))
-                if token:
-                    return view_func(request, *args, **kwargs)
-                else:
-                    print('not logged')
-                    return Response('not-logged')
-            else:
-                return Response('not-logged')
-        except ObjectDoesNotExist:
-            print('not logged')
-            return Response('not-logged')
+                return view_func(request, *args, **kwargs)
+            except ObjectDoesNotExist:
+                response = {
+                    'status': 'not ok',
+                    'reason': 'token is not found'
+                }
+                return Response(response)
+        else:
+            response = {
+                'status': 'not ok',
+                'reason': 'api-token is null',
+            }
+            return Response(response)
+
     return wrapper

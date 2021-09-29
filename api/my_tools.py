@@ -1,5 +1,4 @@
 from .models import ApiToken
-from django.utils import formats
 import uuid
 
 

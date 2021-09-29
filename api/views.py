@@ -20,6 +20,7 @@ def registerView(request):
         }
         return Response(response)
     else:
+        print(form.errors.as_text())
         response = {
             'status': 'not ok',
             'reason': 'username is already taken or password and username are not valid'
@@ -100,11 +101,11 @@ def apiOverView(request):
     return Response(api_urls)
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 @login_required
 def tasksListView(request):
     user = getUser(request)
-    tasks = user.task_set.order_by('-id')
+    tasks = user.task_set.filter(deleted=bool(request.data['deleted'])).order_by('-id')
     serializer = TaskSerializer(tasks, many=True)
     response = {
         'status': 'ok',
@@ -168,6 +169,7 @@ def updateReminder(request):
 
 
 @api_view(['POST'])
+@login_required
 def taskUpdateView(request):
     data = request.data.copy()
     data['user'] = getUser(request).id
@@ -209,4 +211,11 @@ def taskDeleteView(request, pk):
         return Response(response)
 
 
-
+@api_view(['POST'])
+@login_required
+def deleteTasksView(request):
+    tasks = getUser(request).task_set.filter(deleted=True).delete()
+    response = {
+        'status': 'ok'
+    }
+    return Response(response)
