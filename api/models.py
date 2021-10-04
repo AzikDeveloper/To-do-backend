@@ -14,9 +14,4 @@ class Task(models.Model):
         return self.text
 
 
-class ApiToken(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    token = models.UUIDField(default=uuid.uuid4(), editable=False, unique=True)
 
-    def __str__(self):
-        return f'token({self.id})'

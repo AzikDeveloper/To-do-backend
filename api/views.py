@@ -1,89 +1,77 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from .serializers import TaskSerializer
 from .models import Task
-from .decorators import login_required
-from django.contrib.auth import authenticate
-from .my_tools import *
 from .forms import CreateUserForm
 from django.core.exceptions import ObjectDoesNotExist
 
 
 @api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def testApiView(request):
+    return Response('Access granted!')
+
+
+@api_view(['POST'])
 def registerView(request):
+    print(request.headers)
     form = CreateUserForm(request.data)
     if form.is_valid():
         form.save()
         response = {
-            'status': 'ok',
-            'reason': 'password and username are valid'
+            'ok': 'true',
+            'detail': 'password and username are valid'
         }
         return Response(response)
     else:
         print(form.errors.as_text())
         response = {
-            'status': 'not ok',
-            'reason': 'username is already taken or password and username are not valid'
+            'ok': 'true',
+            'detail': 'username is already taken or password and username are not valid'
         }
         return Response(response)
 
 
 @api_view(['POST'])
-def loginView(request):
-    username = request.data.get('username')
-    password = request.data.get('password')
-    user = authenticate(request, username=username, password=password)
-    if user is not None:
-        try:
-            new_token = ApiToken.objects.create(user=user)
-        except Exception:
-            token = ApiToken.objects.get(user=user)
-            token.delete()
-            new_token = ApiToken.objects.create(user=user)
-        response = {
-            'status': 'ok',
-            'reason': 'username and password is correct',
-            'token': new_token.token,
-            'username': user.username
-        }
-        return Response(response)
-    else:
-        response = {
-            'status': 'not ok',
-            'reason': 'username or password is not correct'
-        }
-        return Response(response)
-
-
-@api_view(['POST'])
-@login_required
+@authentication_classes([JWTAuthentication])
+@permission_classes([AllowAny])
 def logOutView(request):
-    token = getApiToken(request)
-    token.delete()
-    response = {
-        'status': 'ok',
-        'reason': 'successful process in logout'
-    }
-    return Response(response)
+    try:
+        refreshToken = request.data['refresh_token']
+        token = RefreshToken(refreshToken)
+        token.blacklist()
+        return Response({
+            'ok': 'true'
+        })
+    except Exception:
+        return Response({
+            'ok': 'false',
+            'detail': 'bad request'
+        })
 
 
 @api_view(['POST'])
-@login_required
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
 def changeProfileView(request):
-    user = getUser(request)
+    user = request.user
     form = CreateUserForm(instance=user, data=request.data)
     if form.is_valid():
         form.save()
         response = {
-            'status': 'ok',
-            'reason': 'username and password are valid',
+            'ok': 'true',
+            'detail': 'username and password are valid',
             'username': user.username
         }
         return Response(response)
     else:
         response = {
-            'status': 'not ok',
-            'reason': 'username is already taken or password and username are not valid'
+            'ok': 'false',
+            'detail': 'username is already taken or password and username are not valid'
         }
         return Response(response)
 
@@ -102,13 +90,14 @@ def apiOverView(request):
 
 
 @api_view(['POST'])
-@login_required
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
 def tasksListView(request):
-    user = getUser(request)
+    user = request.user
     tasks = user.task_set.filter(deleted=bool(request.data['deleted'])).order_by('-id')
     serializer = TaskSerializer(tasks, many=True)
     response = {
-        'status': 'ok',
+        'ok': 'true',
         'reason': 'successful process',
         'data': serializer.data,
         'username': user.username
@@ -116,70 +105,65 @@ def tasksListView(request):
     return Response(response)
 
 
-@api_view(['GET'])
-def taskDetailView(request, pk):
-    task = Task.objects.get(id=pk)
-    serializer = TaskSerializer(task, many=False)
-    return Response(serializer.data)
-
-
 @api_view(['POST'])
-@login_required
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
 def taskCreateView(request):
     data = request.data.copy()
-    data['user'] = getUser(request).id
+    data['user'] = request.user.id
     serializer = TaskSerializer(data=data)
     if serializer.is_valid():
         serializer.save()
         response = {
-            'status': 'ok',
+            'ok': 'true',
             'reason': 'successful process',
             'data': serializer.data
         }
         return Response(response)
     else:
         response = {
-            'status': 'not ok',
+            'ok': 'false',
             'reason': 'invalid credentials'
         }
         return Response(response)
 
 
 @api_view(['POST'])
-@login_required
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
 def updateReminder(request):
-    task_id = request.data.get('task_id')
     try:
-        task = Task.objects.get(id=task_id)
+        task = request.user.task_set.get(id=request.data.get('id'))
         task.reminder = not task.reminder
         task.save()
 
         response = {
-            'status': 'ok',
-            'reason': 'successful process',
+            'ok': 'true',
+            'detail': 'successful process',
             'reminder': task.reminder
         }
         return Response(response)
     except ObjectDoesNotExist:
         response = {
-            'status': 'not ok',
-            'reason': 'task not found'
+            'ok': 'false',
+            'detail': 'task not found'
         }
         return Response(response)
 
 
 @api_view(['POST'])
-@login_required
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
 def taskUpdateView(request):
     data = request.data.copy()
-    data['user'] = getUser(request).id
-    task = Task.objects.get(id=data['id'])
+    data['user'] = request.user.id
+    task = request.user.task_set.get(id=request.data.get('id'))
     serializer = TaskSerializer(instance=task, data=data)
     if serializer.is_valid():
         serializer.save()
         response = {
-            'status': 'ok',
-            'reason': 'successful process',
+            'ok': 'true',
+            'detail': 'successful process',
             'data': serializer.data
         }
         return Response(response)
@@ -191,31 +175,33 @@ def taskUpdateView(request):
         return Response(response)
 
 
-@api_view(['DELETE'])
-@login_required
-def taskDeleteView(request, pk):
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def taskDeleteView(request):
+    print('>>', request.data)
     try:
-        task = Task.objects.get(id=pk)
+        task = request.user.task_set.get(id=request.data.get('id'))
         task.delete()
-
         response = {
-            'status': 'ok',
-            'reason': 'successful process'
+            'ok': 'true',
+            'detail': 'successful process'
         }
         return Response(response)
     except ObjectDoesNotExist:
         response = {
-            'status': 'not ok',
-            'reason': 'task not found'
+            'ok': 'false',
+            'detail': 'task not found'
         }
         return Response(response)
 
 
 @api_view(['POST'])
-@login_required
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
 def deleteTasksView(request):
-    tasks = getUser(request).task_set.filter(deleted=True).delete()
+    request.user.task_set.filter(deleted=True).delete()
     response = {
-        'status': 'ok'
+        'ok': 'true'
     }
     return Response(response)
