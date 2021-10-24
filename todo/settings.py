@@ -11,7 +11,7 @@ SECRET_KEY = 'django-insecure-ng=)xi__w5^wi7-yecqr)*m(c&a47r6&hvpcmpojmaxd6dj$(d
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['https://test-hr-management.herokuapp.com/']
 
 
 # Application definition
@@ -133,13 +133,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'reactapp', 'build', 'media')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:8000"
+    "https://todo-uz.herokuapp.com/"
 ]
 
-CORS_ALLOW_HEADERS = list(default_headers) + [
-    'api-token'
-]
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
