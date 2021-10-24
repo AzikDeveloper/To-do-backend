@@ -109,11 +109,9 @@ def tasksListView(request):
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def taskCreateView(request):
-    data = request.data.copy()
-    data['user'] = request.user.id
-    serializer = TaskSerializer(data=data)
+    serializer = TaskSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save()
+        serializer.save(user=request.user)
         response = {
             'ok': 'true',
             'reason': 'successful process',
